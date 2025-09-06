@@ -7,13 +7,24 @@ import pyodbc
 from dotenv import load_dotenv
 
 def registra_mensagem(mensagem: str):
+    """
+    Função para registrar mensagens no console.
+    Pode ser facilmente modificada no futuro para escrever em um arquivo de log.
+    """
     print(mensagem)
 
 def carregar_json(caminho_json: str) -> dict:
+    """
+    Carrega um arquivo JSON e retorna seu conteúdo como um dicionário.
+    """    
     with open(caminho_json, "r", encoding="utf-8") as f:
         return json.load(f)
 
 def validar_csv(caminho_csv: str, colunas_necessarias: list):
+    """
+    Valida se um arquivo CSV possui as colunas necessárias.
+    Encerra o script com um erro se o CSV for inválido.
+    """    
     with open(caminho_csv, "r", encoding="utf-8") as f:
         leitor = csv.DictReader(f, delimiter=";")
 
@@ -30,6 +41,10 @@ def validar_csv(caminho_csv: str, colunas_necessarias: list):
         print(f"Colunas necessárias encontradas: {colunas_necessarias}")
 
 def imprimir_csv(caminho_csv: str, colunas: list):
+    """
+    Lê o CSV e imprime os valores das colunas especificadas.
+    Útil para visualização e depuração.
+    """    
     with open(caminho_csv, "r", encoding="utf-8") as f:
         leitor = csv.DictReader(f, delimiter=";")
         print("Valores lidos:")
@@ -38,6 +53,10 @@ def imprimir_csv(caminho_csv: str, colunas: list):
             print(";".join(valores))
 
 def inserir_csv_sqlserver(caminho_csv: str, config: dict):
+    """
+    Conecta ao SQL Server, lê o CSV e insere os dados no banco de dados.
+    As credenciais são carregadas de um arquivo .env.
+    """    
     load_dotenv()  # carrega variáveis do .env
 
     server = os.getenv("MSSQL_SERVER")
@@ -77,6 +96,10 @@ def inserir_csv_sqlserver(caminho_csv: str, config: dict):
     print("Todos os registros foram inseridos com sucesso no SQL Server.")
 
 def mover_arquivo(config: dict):
+    """
+    Função principal que orquestra todo o processo de ETL.
+    Valida o CSV, insere no SQL Server e move o arquivo.
+    """
     origem = os.path.join(config["origem"], config["nomeArquivo"])
     destino = os.path.join(config["destino"], config["nomeArquivo"])
 
@@ -102,6 +125,10 @@ def mover_arquivo(config: dict):
         sys.exit(1)
 
 def main():
+    """
+    Ponto de entrada do script.
+    Valida os argumentos de linha de comando e inicia o processo.
+    """    
     if len(sys.argv) != 2:
         print("Uso: python script.py <arquivo_config.json>")
         sys.exit(1)
