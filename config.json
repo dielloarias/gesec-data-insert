@@ -1,0 +1,10 @@
+{
+    "nomeArquivo": "teste.csv",
+    "origem": "./pasta-origem",
+    "destino": "./pasta-destino",
+    "template": [
+        { "coluna": "id" },
+        { "coluna": "pais" },
+        { "coluna": "capital" }
+    ]
+}
