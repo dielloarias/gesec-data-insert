@@ -6,6 +6,9 @@ import csv
 import pyodbc
 from dotenv import load_dotenv
 
+def registra_mensagem(mensagem: str):
+    print(mensagem)
+
 def carregar_json(caminho_json: str) -> dict:
     with open(caminho_json, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -16,12 +19,12 @@ def validar_csv(caminho_csv: str, colunas_necessarias: list):
 
         cabecalho = leitor.fieldnames
         if cabecalho is None:
-            print("Erro: CSV vazio ou sem cabeçalho.")
+            registra_mensagem("Erro: CSV vazio ou sem cabeçalho.")
             sys.exit(1)
 
         faltantes = [col for col in colunas_necessarias if col not in cabecalho]
         if faltantes:
-            print(f"Erro: Colunas não encontradas no CSV: {faltantes}")
+            registra_mensagem(f"Erro: Colunas não encontradas no CSV: {faltantes}")
             sys.exit(1)
 
         print(f"Colunas necessárias encontradas: {colunas_necessarias}")
@@ -47,7 +50,7 @@ def inserir_csv_sqlserver(caminho_csv: str, config: dict):
         conexao = pyodbc.connect(conexao_str)
         cursor = conexao.cursor()
     except Exception as e:
-        print(f"Erro ao conectar ao SQL Server: {e}")
+        registra_mensagem(f"Erro ao conectar ao SQL Server: {e}")
         sys.exit(1)
 
     colunas_origem = [item["colunaFonte"] for item in config["template"]]
@@ -62,7 +65,7 @@ def inserir_csv_sqlserver(caminho_csv: str, config: dict):
             try:
                 cursor.execute(sql, valores)
             except Exception as e:
-                print(f"Erro ao inserir registro {valores}: {e}")
+                registra_mensagem(f"Erro ao inserir registro {valores}: {e}")
                 conexao.rollback()
                 cursor.close()
                 conexao.close()
@@ -78,13 +81,13 @@ def mover_arquivo(config: dict):
     destino = os.path.join(config["destino"], config["nomeArquivo"])
 
     if not os.path.isfile(origem):
-        print(f"Erro: Arquivo {origem} não encontrado.")
+        registra_mensagem(f"Erro: Arquivo {origem} não encontrado.")
         sys.exit(1)
 
     colunas_necessarias = [item["colunaFonte"] for item in config.get("template", [])]
     if colunas_necessarias:
         validar_csv(origem, colunas_necessarias)
-        imprimir_csv(origem, colunas_necessarias)
+        # imprimir_csv(origem, colunas_necessarias)
         inserir_csv_sqlserver(origem, config)
 
     if not os.path.isdir(config["destino"]):
@@ -95,7 +98,7 @@ def mover_arquivo(config: dict):
         shutil.move(origem, destino)
         print(f"Arquivo movido com sucesso para {destino}")
     except Exception as e:
-        print(f"Erro ao mover arquivo: {e}")
+        registra_mensagem(f"Erro ao mover arquivo: {e}")
         sys.exit(1)
 
 def main():
