@@ -2,9 +2,11 @@
     "nomeArquivo": "teste.csv",
     "origem": "./pasta-origem",
     "destino": "./pasta-destino",
+    "database": "DB_PAISES",
+    "tabela": "PAISES",
     "template": [
-        { "coluna": "id" },
-        { "coluna": "pais" },
-        { "coluna": "capital" }
+        { "colunaFonte": "id", "colunaRemoto": "codigo" },
+        { "colunaFonte": "pais", "colunaRemoto": "nm_pais" },
+        { "colunaFonte": "capital", "colunaRemoto": "nm_capital" }
     ]
 }

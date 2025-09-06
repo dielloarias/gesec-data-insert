@@ -1,3 +1,4 @@
 .venv/
 pasta-origem/
 pasta-destino/
+.env
