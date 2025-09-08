@@ -68,35 +68,56 @@ def inserir_csv_sqlserver(caminho_csv: str, config: dict):
     """    
     
     conexao_str = f"DRIVER={{{MSSQL_DRIVER}}};SERVER={MSSQL_SERVER};DATABASE={config['database']};UID={MSSQL_USER};PWD={MSSQL_PASSWORD}"
+    conexao = None
     try:
         conexao = pyodbc.connect(conexao_str)
         cursor = conexao.cursor()
-    except Exception as e:
-        registra_mensagem(f"Erro ao conectar ao SQL Server: {e}")
-        sys.exit(1)
 
-    colunas_origem = [item["colunaFonte"] for item in config["template"]]
-    colunas_destino = [item["colunaRemoto"] for item in config["template"]]
+        colunas_origem = [item["colunaFonte"] for item in config["template"]]
+        colunas_destino = [item["colunaRemoto"] for item in config["template"]]
 
-    with open(caminho_csv, "r", encoding="utf-8") as f:
-        leitor = csv.DictReader(f, delimiter=CSV_DELIMITER)
-        for linha in leitor:
-            valores = [linha[col] for col in colunas_origem]
-            placeholders = ",".join("?" for _ in valores)
+        with open(caminho_csv, "r", encoding="utf-8") as f:
+            leitor = csv.DictReader(f, delimiter=CSV_DELIMITER)
+            
+            # Prepara a instrução SQL de inserção
+            placeholders = ",".join("?" for _ in colunas_origem)
             sql = f"INSERT INTO {config['database']}.dbo.{config['tabela']} ({','.join(colunas_destino)}) VALUES ({placeholders})"
-            try:
-                cursor.execute(sql, valores)
-            except Exception as e:
-                registra_mensagem(f"Erro ao inserir registro {valores}: {e}")
-                conexao.rollback()
-                cursor.close()
-                conexao.close()
-                sys.exit(1)
+            
+            # Cria uma lista para armazenar os dados do lote
+            dados_lote = []
+            lote_tamanho = 1000  # Tamanho do lote, pode ser ajustado conforme a necessidade
+            
+            for linha in leitor:
+                valores = [linha[col] for col in colunas_origem]
+                dados_lote.append(valores)
+                
+                # Quando o lote atinge o tamanho definido, executa a inserção em massa
+                if len(dados_lote) >= lote_tamanho:
+                    cursor.executemany(sql, dados_lote)
+                    dados_lote = []  # Limpa a lista para o próximo lote
 
-    conexao.commit()
-    cursor.close()
-    conexao.close()
-    print("Todos os registros foram inseridos com sucesso no SQL Server.")
+            # Insere os registros restantes, se houver
+            if dados_lote:
+                cursor.executemany(sql, dados_lote)
+
+        conexao.commit()
+        print("Todos os registros foram inseridos com sucesso no SQL Server.")
+
+    except pyodbc.Error as e:
+        if conexao:
+            conexao.rollback()
+        registra_mensagem(f"Erro ao inserir dados. A transação foi revertida: {e}")
+        sys.exit(1)
+    except Exception as e:
+        if conexao:
+            conexao.rollback()
+        registra_mensagem(f"Erro inesperado: {e}")
+        sys.exit(1)
+    finally:
+        if 'cursor' in locals() and cursor:
+            cursor.close()
+        if conexao:
+            conexao.close()
 
 def executar_procedure(config: dict):
     """
