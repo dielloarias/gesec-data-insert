@@ -95,6 +95,43 @@ def inserir_csv_sqlserver(caminho_csv: str, config: dict):
     conexao.close()
     print("Todos os registros foram inseridos com sucesso no SQL Server.")
 
+def executar_procedure(config: dict):
+    """
+    Função para executar uma procedure dentro do SQL SERVER
+    """
+    key = "procedure"
+    
+    if key not in config:
+        # print("procedure não localizada")
+        # Caso não haja procedure para executar, encerra procedure
+        return
+    
+    load_dotenv()  # carrega variáveis do .env
+
+    server = os.getenv("MSSQL_SERVER")
+    user = os.getenv("MSSQL_USER")
+    password = os.getenv("MSSQL_PASSWORD")
+    driver = os.getenv("MSSQL_DRIVER", "ODBC Driver 17 for SQL Server")
+
+    conexao_str = f"DRIVER={{{driver}}};SERVER={server};DATABASE={config['database']};UID={user};PWD={password}"
+    
+    try:
+        procedure = config[key]
+        database = config["database"]
+        
+        conexao = pyodbc.connect(conexao_str)
+        cursor = conexao.cursor()
+        cursor.execute(f"EXEC [{database}].[dbo].[{procedure}];")
+        conexao.commit()
+        cursor.close()
+        conexao.close()
+        
+        print(f"Procedure [{database}].[dbo].[{procedure}] executada com sucesso.")
+        
+    except Exception as e:
+        registra_mensagem(f"Erro ao executar a procedure: {e}")
+        sys.exit(1)
+
 def mover_arquivo(config: dict):
     """
     Função principal que orquestra todo o processo de ETL.
@@ -112,6 +149,7 @@ def mover_arquivo(config: dict):
         validar_csv(origem, colunas_necessarias)
         # imprimir_csv(origem, colunas_necessarias)
         inserir_csv_sqlserver(origem, config)
+        executar_procedure(config)
 
     if not os.path.isdir(config["destino"]):
         print(f"Pasta destino {config['destino']} não existe. Criando...")

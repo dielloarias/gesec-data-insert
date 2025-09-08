@@ -31,6 +31,7 @@ Este projeto em Python realiza um processo simples de ETL (Extract, Transform, L
     "destino": "./pasta-destino",
     "database": "DB_PAISES",
     "tabela": "PAISES",
+    "procedure": "PROCEDURE_TESTE",
     "template": [
         { "colunaFonte": "id", "colunaRemoto": "codigo" },
         { "colunaFonte": "pais", "colunaRemoto": "nm_pais" },
