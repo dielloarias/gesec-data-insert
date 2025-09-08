@@ -6,6 +6,15 @@ import csv
 import pyodbc
 from dotenv import load_dotenv
 
+# Carregamento de Variáveis de ambiente .env
+load_dotenv()
+CSV_DELIMITER = os.getenv("CSV_DELIMITER", ";")
+MSSQL_SERVER = os.getenv("MSSQL_SERVER")
+MSSQL_USER = os.getenv("MSSQL_USER")
+MSSQL_PASSWORD = os.getenv("MSSQL_PASSWORD")
+MSSQL_DRIVER = os.getenv("MSSQL_DRIVER", "ODBC Driver 17 for SQL Server")
+
+
 def registra_mensagem(mensagem: str):
     """
     Função para registrar mensagens no console.
@@ -26,7 +35,7 @@ def validar_csv(caminho_csv: str, colunas_necessarias: list):
     Encerra o script com um erro se o CSV for inválido.
     """    
     with open(caminho_csv, "r", encoding="utf-8") as f:
-        leitor = csv.DictReader(f, delimiter=";")
+        leitor = csv.DictReader(f, delimiter=CSV_DELIMITER)
 
         cabecalho = leitor.fieldnames
         if cabecalho is None:
@@ -46,7 +55,7 @@ def imprimir_csv(caminho_csv: str, colunas: list):
     Útil para visualização e depuração.
     """    
     with open(caminho_csv, "r", encoding="utf-8") as f:
-        leitor = csv.DictReader(f, delimiter=";")
+        leitor = csv.DictReader(f, delimiter=CSV_DELIMITER)
         print("Valores lidos:")
         for linha in leitor:
             valores = [linha[col] for col in colunas]
@@ -57,14 +66,8 @@ def inserir_csv_sqlserver(caminho_csv: str, config: dict):
     Conecta ao SQL Server, lê o CSV e insere os dados no banco de dados.
     As credenciais são carregadas de um arquivo .env.
     """    
-    load_dotenv()  # carrega variáveis do .env
-
-    server = os.getenv("MSSQL_SERVER")
-    user = os.getenv("MSSQL_USER")
-    password = os.getenv("MSSQL_PASSWORD")
-    driver = os.getenv("MSSQL_DRIVER", "ODBC Driver 17 for SQL Server")
-
-    conexao_str = f"DRIVER={{{driver}}};SERVER={server};DATABASE={config['database']};UID={user};PWD={password}"
+    
+    conexao_str = f"DRIVER={{{MSSQL_DRIVER}}};SERVER={MSSQL_SERVER};DATABASE={config['database']};UID={MSSQL_USER};PWD={MSSQL_PASSWORD}"
     try:
         conexao = pyodbc.connect(conexao_str)
         cursor = conexao.cursor()
@@ -76,7 +79,7 @@ def inserir_csv_sqlserver(caminho_csv: str, config: dict):
     colunas_destino = [item["colunaRemoto"] for item in config["template"]]
 
     with open(caminho_csv, "r", encoding="utf-8") as f:
-        leitor = csv.DictReader(f, delimiter=";")
+        leitor = csv.DictReader(f, delimiter=CSV_DELIMITER)
         for linha in leitor:
             valores = [linha[col] for col in colunas_origem]
             placeholders = ",".join("?" for _ in valores)
@@ -106,14 +109,7 @@ def executar_procedure(config: dict):
         # Caso não haja procedure para executar, encerra procedure
         return
     
-    load_dotenv()  # carrega variáveis do .env
-
-    server = os.getenv("MSSQL_SERVER")
-    user = os.getenv("MSSQL_USER")
-    password = os.getenv("MSSQL_PASSWORD")
-    driver = os.getenv("MSSQL_DRIVER", "ODBC Driver 17 for SQL Server")
-
-    conexao_str = f"DRIVER={{{driver}}};SERVER={server};DATABASE={config['database']};UID={user};PWD={password}"
+    conexao_str = f"DRIVER={{{MSSQL_DRIVER}}};SERVER={MSSQL_SERVER};DATABASE={config['database']};UID={MSSQL_USER};PWD={MSSQL_PASSWORD}"
     
     try:
         procedure = config[key]

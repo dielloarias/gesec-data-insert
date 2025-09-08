@@ -51,6 +51,7 @@ MSSQL_SERVER=localhost
 MSSQL_USER=seu_usuario
 MSSQL_PASSWORD=sua_senha
 MSSQL_DRIVER=ODBC Driver 17 for SQL Server
+CSV_DELIMITER=;
 ```
 
 ---
