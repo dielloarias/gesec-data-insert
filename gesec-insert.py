@@ -81,8 +81,14 @@ def inserir_csv_sqlserver(caminho_csv: str, config: dict):
             
             # Prepara a instrução SQL de inserção
             placeholders = ",".join("?" for _ in colunas_origem)
-            sql = f"INSERT INTO {config['database']}.dbo.{config['tabela']} ({','.join(colunas_destino)}) VALUES ({placeholders})"
+            # Cria uma nova lista com os colchetes adicionados a cada coluna
+            colunas_com_colchetes = [f"[{coluna}]" for coluna in colunas_destino]
+            colunas_string = ", ".join(colunas_com_colchetes)
+
+            # A nova consulta SQL completa
+            sql = f"INSERT INTO {config['database']}.dbo.{config['tabela']} ({colunas_string}) VALUES ({placeholders})"
             
+            print(sql)
             # Cria uma lista para armazenar os dados do lote
             dados_lote = []
             lote_tamanho = 1000  # Tamanho do lote, pode ser ajustado conforme a necessidade
