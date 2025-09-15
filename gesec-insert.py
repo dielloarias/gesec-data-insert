@@ -2,7 +2,7 @@ import sys
 import json
 import os
 import shutil
-import pyodbc
+import pymssql
 from dotenv import load_dotenv
 
 # Carregamento de Variáveis de ambiente .env
@@ -10,7 +10,7 @@ load_dotenv()
 MSSQL_SERVER = os.getenv("MSSQL_SERVER")
 MSSQL_USER = os.getenv("MSSQL_USER")
 MSSQL_PASSWORD = os.getenv("MSSQL_PASSWORD")
-MSSQL_DRIVER = os.getenv("MSSQL_DRIVER", "ODBC Driver 17 for SQL Server")
+MSSQL_PORT = int(os.getenv("MSSQL_PORT", 1433))  # porta padrão do SQL Server
 
 
 def registra_mensagem(mensagem: str):
@@ -45,19 +45,15 @@ def validar_json(caminho_json: str, colunas_necessarias: list):
         registra_mensagem(f"Erro: Colunas não encontradas em alguns registros: {faltantes}")
         sys.exit(1)
 
-    print(f"Colunas necessárias encontradas: {colunas_necessarias}")
+    registra_mensagem(f"Colunas necessárias encontradas: {colunas_necessarias}")
     return dados["records"]
 
 
 def inserir_json_sqlserver(caminho_json: str, config: dict):
     """Conecta ao SQL Server, lê o JSON e insere os dados no banco de dados."""
-    conexao_str = (
-        f"DRIVER={{{MSSQL_DRIVER}}};SERVER={MSSQL_SERVER};"
-        f"DATABASE={config['database']};UID={MSSQL_USER};PWD={MSSQL_PASSWORD}"
-    )
     conexao = None
     try:
-        conexao = pyodbc.connect(conexao_str)
+        conexao = gera_conexao(config)
         cursor = conexao.cursor()
 
         colunas_origem = [item["colunaFonte"] for item in config["template"]]
@@ -66,17 +62,14 @@ def inserir_json_sqlserver(caminho_json: str, config: dict):
         registros = validar_json(caminho_json, colunas_origem)
 
         # Prepara a instrução SQL de inserção
-        placeholders = ",".join("?" for _ in colunas_origem)
+        placeholders = ",".join("%s" for _ in colunas_origem)
         colunas_com_colchetes = [f"[{coluna}]" for coluna in colunas_destino]
         colunas_string = ", ".join(colunas_com_colchetes)
 
-        sql = (
-            f"INSERT INTO {config['database']}.dbo.{config['tabela']} "
-            f"({colunas_string}) VALUES ({placeholders});"
-        )
-
-        print(sql)
-
+        database = config['database']
+        tabela = config['tabela']
+        
+        sql = f"INSERT INTO {database}.dbo.{tabela} ({colunas_string}) VALUES ({placeholders});"
         dados_lote = []
         lote_tamanho = 1000
 
@@ -92,17 +85,12 @@ def inserir_json_sqlserver(caminho_json: str, config: dict):
             cursor.executemany(sql, dados_lote)
 
         conexao.commit()
-        print("Todos os registros foram inseridos com sucesso no SQL Server.")
+        registra_mensagem("Todos os registros foram inseridos com sucesso no SQL Server.")
 
-    except pyodbc.Error as e:
-        if conexao:
-            conexao.rollback()
-        registra_mensagem(f"Erro ao inserir dados. A transação foi revertida: {e}")
-        sys.exit(1)
     except Exception as e:
         if conexao:
             conexao.rollback()
-        registra_mensagem(f"Erro inesperado: {e}")
+        registra_mensagem(f"Erro ao inserir dados: {e}")
         sys.exit(1)
     finally:
         if 'cursor' in locals() and cursor:
@@ -118,28 +106,37 @@ def executar_procedure(config: dict):
     if key not in config:
         return
 
-    conexao_str = (
-        f"DRIVER={{{MSSQL_DRIVER}}};SERVER={MSSQL_SERVER};"
-        f"DATABASE={config['database']};UID={MSSQL_USER};PWD={MSSQL_PASSWORD}"
-    )
-
     try:
-        procedure = config[key]
-        database = config["database"]
-
-        conexao = pyodbc.connect(conexao_str)
+        conexao = gera_conexao(config)
         cursor = conexao.cursor()
+        database = config['database']
+        procedure = config[key]
+        
         cursor.execute(f"EXEC [{database}].[dbo].[{procedure}];")
         conexao.commit()
         cursor.close()
         conexao.close()
 
-        print(f"Procedure [{database}].[dbo].[{procedure}] executada com sucesso.")
+        registra_mensagem(f"Procedure [{database}].[dbo].[{procedure}] executada com sucesso.")
 
     except Exception as e:
         registra_mensagem(f"Erro ao executar a procedure: {e}")
         sys.exit(1)
 
+
+def gera_conexao(config):
+    """
+        Método que retorna conexão com o MSSQL
+    """    
+    conexao = pymssql.connect(
+            server=MSSQL_SERVER,
+            user=MSSQL_USER,
+            password=MSSQL_PASSWORD,
+            database=config["database"],
+            port=MSSQL_PORT
+        )
+    
+    return conexao
 
 def mover_arquivo(config: dict):
     """
@@ -159,12 +156,12 @@ def mover_arquivo(config: dict):
         executar_procedure(config)
 
     if not os.path.isdir(config["destino"]):
-        print(f"Pasta destino {config['destino']} não existe. Criando...")
+        registra_mensagem(f"Pasta destino {config['destino']} não existe. Criando...")
         os.makedirs(config["destino"], exist_ok=True)
 
     try:
-        # shutil.move(origem, destino)
-        print(f"Arquivo movido com sucesso para {destino}")
+        shutil.move(origem, destino)
+        registra_mensagem(f"Arquivo movido com sucesso para {destino}")
     except Exception as e:
         registra_mensagem(f"Erro ao mover arquivo: {e}")
         sys.exit(1)
@@ -173,7 +170,7 @@ def mover_arquivo(config: dict):
 def main():
     """Ponto de entrada do script."""
     if len(sys.argv) != 2:
-        print("Uso: python script.py <arquivo_config.json>")
+        registra_mensagem("Uso: python script.py <arquivo_config.json>")
         sys.exit(1)
 
     config = carregar_json(sys.argv[1])
