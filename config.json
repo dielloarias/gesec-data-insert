@@ -1,5 +1,5 @@
 {
-    "nomeArquivo": "teste.csv",
+    "nomeArquivo": "teste.json",
     "origem": "./pasta-origem",
     "destino": "./pasta-destino",
     "database": "DB_PAISES",
